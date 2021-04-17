@@ -14,6 +14,12 @@ local backGroup, mainGroup, uiGroup, codeGroup, cmdGroup
 local q = require"base"
 local player
 
+local blue = "457B9D"
+  local red = "E63946"
+  local green = "b7eec7"
+
+
+
 local masCode = {}
 local elements = {}
 local pos
@@ -56,6 +62,23 @@ local function Do()
   end
 end
 
+local deb = display.newText("1", 50,20,native.newFont("qv.ttf" ),50)
+deb.anchorX=0
+deb.anchorY=0
+
+local function updateDeb()
+  local TXT = ""
+  for i=1, line do
+    if elements[i]~=nil then
+      TXT = TXT..i..". "..elements[i].label.text.." #"..elements[i].num.."\n"
+      -- print("#"..i, elements[i].label.text)
+    else
+      TXT = TXT..i..". ".."\n"
+      -- print("#"..i.."clear")
+    end
+  end
+  deb.text=TXT
+end
 local function allDown()
   local index = 1
   local log = {}
@@ -64,7 +87,7 @@ local function allDown()
     for i=1, line do
       text = text .. tostring( elements[i]) ..", "
     end
-    print(text.."}")
+    -- print(text.."}")
     if elements[i]==nil then
       local nullPose = i
 
@@ -82,11 +105,132 @@ local function allDown()
       elements[nullPose] = a
       elements[nowPose]=nil
     end
-  end 
+  end
+  for i=1, line do
+    if elements[i]~=nil then 
+      elements[i].num = i
+    end
+  end
+  updateDeb()
 end
 
-local function moveElement(event)
 
+local wait = false
+local function moveElement(event)
+  if wait then print("waaaait")return end
+
+  local phase = event.phase
+  display.currentStage:setFocus( event.target )
+  -- local IN = false
+  if phase ~="moved" then updateDeb() end
+  if ( "began" == phase ) then
+    codeGroup:insert( event.target )
+    display.remove(event.target.pop)
+    event.target.pop=nil
+
+    event.target.started = true
+    event.target.mouseX = event.x
+    event.target.mouseY = event.y
+    event.target.oldposX = event.target.x
+    event.target.oldposY = event.target.y
+
+    print("num",event.target.num,event.target.cmd)
+    -- if event.target.enable==true then --ЕСЛИ УЖЕ ВСТАВЛЕН
+      -- print("delete",event.target.num,event.target.cmd)
+    if event.target.num~=nil then
+      elements[event.target.num] = nil
+      -- allDown()
+      updateDeb()
+    end
+    print("=======")
+    for i=1, line do
+      if elements[i]~=nil then
+        print("#"..i, elements[i].label.text)
+      else
+        print("#"..i.."clear")
+      end
+    end
+    
+  elseif ( "moved" == phase ) then
+    if event.target.started~=true then return end
+    if event.target.mouseX and event.target.oldposX then
+      event.target.x = event.target.oldposX+(event.x-event.target.mouseX)
+      event.target.y = event.target.oldposY+(event.y-event.target.mouseY)
+    else
+      display.currentStage:setFocus( nil )
+    end
+  elseif ( "ended" == phase or "cancelled" == phase ) then
+    display.currentStage:setFocus( nil )
+    if event.target.pop~=nil or event.target.started~=true then return end
+
+    if event.target.y<(pos) then
+      display.remove(event.target)
+
+    else
+      -- wait = true
+      -- timer.performWithDelay( 1000, function() wait=false end )
+      event.target.started = false
+      event.target.x=170
+      event.target.anchorX=0
+      event.target.xScale=.5
+      event.target.yScale=.5
+
+      -- if IN==false then
+        local a = q.round((event.target.y-pos)/51)
+        a = (a<1) and 1 or a
+        if elements[a]==nil then 
+          elements[a] = event.target
+          print("clear add")
+        else
+          print("move add")
+          for i=line, a, -1 do
+            if elements[i]~=nil then
+              transition.to(elements[i],{y=pos+50*(i+1)-20})
+              elements[i].num = elements[i].num + 1
+              local b = elements[i]
+              elements[i+1]=b
+              elements[i]=nil
+            end  
+          end
+          elements[a] = event.target
+        end
+        event.target.num=a
+
+        event.target.y = pos-20 + 50 * a
+
+        if event.target.cycle and event.target.enable~=true then
+          print("create end")
+
+          local elem = display.newGroup()
+          codeGroup:insert(elem)
+          elem.x = event.target.x
+          elem.y = pos+110*12+80
+          elem.cmd = "#1"
+          elem.num = 12
+          elem.xScale=.5
+          elem.yScale=.5
+          elem.enable = true
+
+          local rect = display.newRect(elem, 0, 0, 500*.8, 80)
+          rect.fill = q.CL(red) 
+          
+          local text = display.newText(elem, "END", 0, -5, native.newFont( "qv.ttf" ), 72)
+          elem.label=text
+          elem:addEventListener( "touch", moveElement)
+          elements[line]=elem
+        end
+        event.target.enable = true
+      -- else
+
+      -- end
+      
+    end
+    allDown()
+    updateDeb()
+    -- print("=======")
+    
+  end
+  return true
 end
 
 function scene:create( event )
@@ -116,22 +260,40 @@ function scene:create( event )
   backCode.alpha=.8
   backCode.fill={1}
 
-  local blue = "457B9D"
   local blueButton = display.newRect(codeGroup, q.fullw, backCode.y-backCode.height+150, 100, 100 )
   blueButton.anchorX=1
-  -- blueButton.fill={.3,.3,1}
+  blueButton.type=1
   blueButton.fill=q.CL(blue)
+  blueButton.colors=q.CL(blue)
+  blueButton.color=q.CL(blue)
 
-  local red = "E63946"
+  blueButton.color[1]=blueButton.color[1]*1.4
+  blueButton.color[2]=blueButton.color[2]*1.4
+  blueButton.color[3]=blueButton.color[3]*1.4
+
   local redButton = display.newRect(codeGroup, q.fullw, backCode.y-backCode.height+300, 100, 100 )
   redButton.anchorX=1
+  redButton.type=2
   redButton.fill=q.CL(red)
+  redButton.colors=q.CL(red)
+  redButton.color=q.CL(red)
+
+  redButton.color[1]=redButton.color[1]*1.4
+  redButton.color[2]=redButton.color[2]*1.4
+  redButton.color[3]=redButton.color[3]*1.4
   -- redButton.fill={1,.3,.3}
 
-  local green = "b7ffc7"
   local greenButton = display.newRect(codeGroup, q.fullw, backCode.y-backCode.height+450, 100, 100 )
   greenButton.anchorX=1
+  greenButton.type=3
   greenButton.fill=q.CL(green)
+  greenButton.colors=q.CL(green)
+  greenButton.color=q.CL(green)
+
+  greenButton.color[1]=greenButton.color[1]*0.9
+  greenButton.color[2]=greenButton.color[2]*0.9
+  greenButton.color[3]=greenButton.color[3]*0.9
+
   -- greenButton.fill={1,.3,.3}
   
   pos = backCode.y-backCode.height
@@ -142,32 +304,33 @@ function scene:create( event )
   end
 
 
-  local cmdB = { up = "U",down="D",right="R",left="L",pick="P"}
+  blueButton.cmd = { up = "U",down="D",right="R",left="L",pick="P"}
+  redButton.cmd = { For = "*1", While="I"}
+  greenButton.cmd = { Plus = "*1", Minus="I"}
 
-  blueButton:addEventListener( "tap", 
-    function()
-      local pop = display.newGroup()
-      pop.alpha=0
-      transition.to(pop,{alpha=.9,time=100})
-      codeGroup:insert( pop )
-      
-      local backClose = display.newRect(pop, q.cx, q.cy, q.fullw, q.fullh)
-      backClose.alpha=.01
-      backClose:addEventListener( "tap", function() display.remove(pop) end )
+  local function listGen(event)
+    local pop = display.newGroup()
+    pop.alpha=0
+    transition.to(pop,{alpha=.9,time=100})
+    codeGroup:insert( pop )
+    
+    local backClose = display.newRect(pop, q.cx, q.cy, q.fullw, q.fullh)
+    backClose.alpha=.01
+    backClose:addEventListener( "tap", function() display.remove(pop) end )
 
-      local backList = display.newRect( pop, q.fullw-130, q.fullh-30, 500, 600 )
-      backList.fill=q.CL(blue)
-      backList.anchorY=1
-      backList.anchorX=1
+    local backList = display.newRect( pop, q.fullw-130, q.fullh-30, 500, 600 )
+    backList.fill=event.target.colors
+    backList.anchorY=1
+    backList.anchorX=1
 
-      local x, y = backList.x-(backList.width*.5), backList.y-backList.height
-      local i=0
-      local blue = q.CL(blue)
-      blue[1]=blue[1]*1.4
-      blue[2]=blue[2]*1.4
-      blue[3]=blue[3]*1.4
-      for k, v in pairs(cmdB) do
-        print("ji")
+    local x, y = backList.x-(backList.width*.5), backList.y-backList.height
+    local i=0
+    -- local blue = unpack{event.target.colors}
+    -- blue[1]=blue[1]*1.4
+    -- blue[2]=blue[2]*1.4
+    -- blue[3]=blue[3]*1.4
+    if event.target.type==1 or event.target.type==3 then
+      for k, v in pairs(event.target.cmd) do
         local elem = display.newGroup()
         elem.x = x
         elem.y = y+110*i+80
@@ -175,75 +338,97 @@ function scene:create( event )
         pop:insert( elem )
 
         local rect = display.newRect(elem, 0, 0, backList.width*.8, 80)
-        rect.fill = blue 
+        rect.fill = event.target.color 
         
         local text = display.newText(elem, (k):upper(), 0, -5, native.newFont( "qv.ttf" ), 72)
         i = i + 1
-
-        elem:addEventListener( "touch", 
-          function(event) 
-            local phase = event.phase
-            display.currentStage:setFocus( elem )
-            local IN = false
-            if ( "began" == phase ) then
-              codeGroup:insert( elem )
-              display.remove(pop)
-
-              elem.mouseX = event.x
-              elem.mouseY = event.y
-              elem.oldposX = elem.x
-              elem.oldposY = elem.y
-
-              if elem.enable==true then
-                print("delete",elem.num,elem.cmd)
-                elements[elem.num] = nil
-              end
-              
-            elseif ( "moved" == phase ) then
-              if elem.mouseX and elem.oldposX then
-                elem.x = elem.oldposX+(event.x-elem.mouseX)
-                elem.y = elem.oldposY+(event.y-elem.mouseY)
-              else
-                display.currentStage:setFocus( nil )
-              end
-            elseif ( "ended" == phase or "cancelled" == phase ) then
-              display.currentStage:setFocus( nil )
-
-              if elem.y<(backCode.y-backCode.height) then
-                display.remove(elem)
-              else
-                elem.x=170
-                elem.anchorX=0
-                elem.xScale=.5
-                elem.yScale=.5
-
-                if IN==false then
-                -- print(569/11)
-                  local a = q.round((elem.y-pos)/51)
-                  elements[a] = elem
-                  elem.num=a
-                  -- print(a)
-                  elem.y = pos-20 + 50 * a
-
-                  elem.enable = true
-                  -- transition.to()
-                  allDown()
-
-                else
-
-                end
-
-              end
-            -- end 
-            -- )
-          end
-          return true
-        end 
-        )
+        elem.label=text
+        elem.pop = pop
+        elem:addEventListener( "touch", moveElement)
       end
-    end
-  )
+    else
+      local elem = display.newGroup()
+      elem.x = x
+      elem.y = y+110*i+80
+      elem.cmd = v
+      elem.cycle=true
+      pop:insert( elem )
 
+      local rect = display.newRect(elem, 0, 0, backList.width*.8, 80)
+      rect.fill = event.target.color 
+
+      local numRect = display.newRect(elem, 120, 0, 100, 60)
+      numRect.alpha=.3
+
+      elem.cycle=1
+      local numLabel = display.newText(elem, ("1"):upper(), 120, -5, native.newFont( "qv.ttf" ), 52)
+      numRect:addEventListener( "tap", 
+        function()
+
+          local popNum = display.newGroup()
+          -- popNum.alpha=0
+          -- transition.to(popNum,{alpha=.9,time=100})
+          elem:insert( popNum )
+          
+          -- local backClose = display.newRect(popNum, q.cx, 0, q.fullw*1.4, q.fullh*1.4)
+          -- backClose.alpha=.01
+
+          local back = display.newRect( popNum, rect.width*.5+50, 0, 380, 320 )
+          back.anchorX=0
+          back:addEventListener( "tap", function() numLabel.text = elem.cycle display.remove(popNum) end )
+
+          local editLabel = display.newText( popNum, "0 1", back.x+back.width*.5, back.y-20, native.newFont( "qv.ttf" ), 252 )
+          editLabel:setFillColor( 0 )
+
+          local updateText = function()
+            if elem.cycle<10 then
+              editLabel.text = "0 "..tostring(elem.cycle)
+            else
+              editLabel.text = (tostring(elem.cycle)):sub(1,1).." "..(tostring(elem.cycle)):sub(2,2)
+            end
+          end
+          local addLeft = display.newRect( popNum, back.x+90, -250, 80, 80 )
+          addLeft:addEventListener( "tap", 
+            function() 
+              elem.cycle=elem.cycle+10
+              updateText()
+            end )
+          local addRight = display.newRect( popNum, back.x+290, -250, 80, 80 )
+          addRight:addEventListener( "tap", 
+            function() 
+              elem.cycle=elem.cycle+1
+              updateText()
+            end )
+
+          local downLeft = display.newRect( popNum, back.x+90, 250, 80, 80 )
+          downLeft:addEventListener( "tap", 
+            function() 
+              elem.cycle=elem.cycle-10
+              updateText()
+            end )
+          local downRight = display.newRect( popNum, back.x+290, 250, 80, 80 )
+          downRight:addEventListener( "tap", 
+            function() 
+              elem.cycle=elem.cycle-1
+              updateText()
+            end )
+
+        end )
+
+      local text = display.newText(elem, ("FOR"):upper(), -60, -5, native.newFont( "qv.ttf" ), 72)
+      i = i + 1
+      elem.label=text
+      elem.pop = pop
+      elem:addEventListener( "touch", moveElement)
+    end
+    -- blue[1]=blue[1]/1.4
+    -- blue[2]=blue[2]/1.4
+    -- blue[3]=blue[3]/1.4
+  end
+
+  blueButton:addEventListener( "tap", listGen )
+  greenButton:addEventListener( "tap", listGen )
+  redButton:addEventListener( "tap", listGen )
   Do()
 end
 
