@@ -1,10 +1,3 @@
---[[
-main-file
-local composer = require( "composer" )
-display.setStatusBar( display.HiddenStatusBar )
-math.randomseed( os.time() )
-composer.gotoScene( "menu" )
---]]
 local composer = require( "composer" )
 
 local scene = composer.newScene()
@@ -25,12 +18,10 @@ function scene:create( event )
   uiGroup = display.newGroup()
   sceneGroup:insert(uiGroup)
 
-  -- local liga = display.newImageRect( [parent,], filename, [baseDir,], width, height )
 
   local back = display.newImageRect( backGroup, "pack.png", q.fullw, q.fullh )
   back.x=q.cx
   back.y=q.cy
-  -- back.rotation=90
 
   back:addEventListener( "tap", function() composer.gotoScene("game") end )
 end

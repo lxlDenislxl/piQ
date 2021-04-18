@@ -45,9 +45,7 @@ local shape_enemy = {
   height*width, 0
 }
 height, width = nil, nil
--- blueButton.cmd = { up = "U",down="D",right="R",left="L",pick="P"}
---   redButton.cmd = { For = "*1", While="I"}
---   greenButton.cmd = { Plus = "*1", Minus="I"}
+
 local function clearMap()
   for x=1, sizeX do
     for y=1, sizeY do
@@ -59,9 +57,26 @@ local function clearMap()
   end
 end
 
+local sounds = {
+  die = audio.loadSound( "die1.wav"  ),
+  go = audio.loadStream( "step.mp3" )
+}
+
+
+local playerZerPose = {x=4,y=7}
+
 local maps={
-  {block={{x=1,y=2},{x=2,y=1},{x=4,y=5}},exit={{x=2,y=3}},playerZerPose={x=4,y=7}},
-  {block={{x=2,y=2},{x=3,y= 3}},exit={{x=2,y=3}},playerZerPose={x=4,y=7}},
+  {block={},exit={{x=2,y=1},{x=7,y=3}},enemy={x=3,y=4,code={"D","D","D","D"}},playerZerPose={x=4,y=7}},
+  {block={{x=3,y=3},{x=4,y=3},{x=5,y=3}},exit={{x=3,y=1}},playerZerPose={x=4,y=7}},
+  {block={{x=2,y=3},{x=3,y=3},{x=4,y=3},{x=4,y=5},{x=5,y=5},{x=6,y=5}},exit={{x=2,y=1}},playerZerPose={x=4,y=7}},
+  {block={{x=4,y=1},{x=5,y=1},{x=6,y=1},{x=2,y=3},{x=3,y=3}, {x=2,y=5},{x=3,y=5},{x=4,y=5}, {x=6,y=3},{x=6,y=4},{x=6,y=5}},exit={{x=1,y=1}},playerZerPose={x=7,y=7}},
+  {block={{x=1,y=3}, {x=2,y=2}, {x=3,y=5}, {x=4,y=2},{x=4,y=3}, {x=5,y=6},{x=6,y=6}, {x=6,y=3},{x=6,y=4}, {x=7,y=5}},exit={{x=6,y=1}},playerZerPose={x=1,y=7}},
+}
+local task = {
+  {step=7,cmd=6},
+  {step=9,cmd=6},
+  {step=10,cmd=7},
+  {step=12,cmd=6},
 }
 
 local function block(x,y)
@@ -71,27 +86,40 @@ local function block(x,y)
   -- map[x][y].rotation = math.random(0,4) * 90
 end
 
-local function fillMap(level)
-  clearMap()
-  local blocks = maps[level].block
-  for i=1, #blocks do
-    block(blocks[i].x, blocks[i].y)
-  end
+local function createExit(x,y)
+  map[x][y].fill={type="image",filename="exit.png"}
+  map[x][y].alpha=1
+  map[x][y].exit=true
 end
 
 local stop = true
 local steps = 0
-local playerZerPose = {x=4,y=7}
 local function restart()
   steps = 0
   stop=true
   show.alpha=0
   player.x = cubeSize*(playerZerPose.x-.5)
   player.y = cubeSize*(playerZerPose.y-.5)
-  player.mapx, player.mapy = 4, 7
+  player.mapx, player.mapy = playerZerPose.x, playerZerPose.y
 end
 
-local task = {{step=6,cmd=5}}
+local function fillMap(level)
+  clearMap()
+  local blocks = maps[level].block
+  for i=1, #blocks do
+    block(blocks[i].x, blocks[i].y)
+  end
+  local exit = maps[level].exit
+  for i=1, #exit do
+    createExit(exit[i].x, exit[i].y)
+  end
+  playerZerPose = maps[level].playerZerPose
+  restart()
+
+end
+
+
+
 local function checkWin()
   local pop = display.newGroup( )
   uiGroup:insert( pop )
@@ -121,24 +149,34 @@ local function checkWin()
   local cmdLabel = display.newText( infoPop, "Кол-во команд:", -infoback.width/2+35, -45, native.newFont("r_b.ttf"),47)
   cmdLabel.anchorX=0
 
-  local stepRight = display.newText( infoPop, steps.."/"..task[1].step, infoback.width/2-65, -120, native.newFont("r_b.ttf"),47)
+  local stepRight = display.newText( infoPop, steps.."/"..task[level].step, infoback.width/2-65, -120, native.newFont("r_b.ttf"),47)
   stepRight.anchorX=1
 
-  local cmdRight = display.newText( infoPop, #elements.."/"..task[1].cmd, infoback.width/2-65, -45, native.newFont("r_b.ttf"),47)
+  local cmdRight = display.newText( infoPop, #elements.."/"..task[level].cmd, infoback.width/2-65, -45, native.newFont("r_b.ttf"),47)
   cmdRight.anchorX=1
 
-  local color = steps>task[1].step and red or green
+  local color = steps>task[level].step and red or green
   stepRight:setFillColor( unpack(color) )
   stepLabel:setFillColor( unpack(color) )
 
-  local color = #elements>task[1].cmd and red or green
+  local color = #elements>task[level].cmd and red or green
   cmdLabel:setFillColor( unpack(color) )
   cmdRight:setFillColor( unpack(color) )
 
   local restartButt = display.newRect( infoPop, 0, 115, 160, 160 )
   restartButt.alpha=.01
   restartButt:addEventListener( "tap", function() restart() display.remove(pop) end )
-  -- restartButt.fill={.5}
+
+  local nextButt = display.newRect( infoPop, 220, 205, 160, 160 )
+  -- nextButt:setFillColor( unpack(color) )
+  nextButt.alpha=.01
+  nextButt:addEventListener( "tap", function() restart() level = level + 1 fillMap(level) display.remove(pop) end )
+
+end
+
+local function crash()
+  audio.play( sounds.die, {channel=3} )
+  restart()
 end
 
 local function Do()
@@ -149,29 +187,33 @@ local function Do()
   print(player.mapx,player.mapy,sizeY,player.mapy==sizeY)
   local cmd = elements[index].cmd
   if cmd=="U" then
-    if player.mapy==1 or map[player.mapx][player.mapy-1].block==true then restart() return end
+    if player.mapy==1 or map[player.mapx][player.mapy-1].block==true then crash() return end
     steps = steps + 1
     player.mapy = player.mapy - 1
+    audio.play( sounds.go, {channel=3} )
     transition.to( player, {y=player.y-cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="D" then
-    if player.mapy==sizeY or map[player.mapx][player.mapy+1].block==true then restart() return end
+    if player.mapy==sizeY or map[player.mapx][player.mapy+1].block==true then crash() return end
     steps = steps + 1
+    audio.play( sounds.go, {channel=3} )
     player.mapy = player.mapy + 1
     transition.to( player, {y=player.y+cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="L" then
-    if player.mapx==1 or map[player.mapx-1][player.mapy].block==true then restart() return end
+    if player.mapx==1 or map[player.mapx-1][player.mapy].block==true then crash() return end
     steps = steps + 1
+    audio.play( sounds.go, {channel=3} )
     player.mapx = player.mapx-1
     transition.to( player, {x=player.x-cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="R" then
-    if player.mapx==sizeX or map[player.mapx+1][player.mapy].block==true then restart() return end
+    if player.mapx==sizeX or map[player.mapx+1][player.mapy].block==true then crash() return end
     steps = steps + 1
+    audio.play( sounds.go, {channel=3} )
     player.mapx = player.mapx+1
     transition.to( player, {x=player.x+cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
@@ -436,9 +478,7 @@ function scene:create( event )
 
   -- map[4][3]:setFillColor( 0,1,0 )
   
-  -- map[4][3].fill={type="image",filename="exit.png"}
-  -- map[4][3].alpha=1
-  -- map[4][3].exit=true
+  -- 
 
   -- -- map[4][6]:setFillColor( 1,0,0 )
   -- for i=1, 20 do
@@ -516,7 +556,7 @@ function scene:create( event )
   playButton.yScale=.8
   playButton:setFillColor( .2 )
   -- playButton.anchorX=1
-  playButton:addEventListener( "tap", function() clearMap() if stop==true then steps=0 stop=false show.alpha=1 index=1 Do() end end )
+  playButton:addEventListener( "tap", function() if stop==true then steps=0 stop=false show.alpha=1 index=1 Do() end end )
 
   local stopButton = display.newRect(codeGroup, q.fullw-250,  pos-50, 75,75)
   stopButton:setFillColor( .2 )
@@ -689,7 +729,7 @@ function scene:show( event )
   if ( phase == "will" ) then
 
   elseif ( phase == "did" ) then
-    fillMap(1)
+    fillMap(level)
     -- checkWin()     
   end
 end
