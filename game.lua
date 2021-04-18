@@ -20,6 +20,14 @@ local green = "b7eec7"
 
 local were
 
+local sizeX, sizeY = 7, 7
+local map = {}
+local cubeSize = q.fullw/sizeX
+
+for i=1, sizeX, 1 do
+  map[i] = {}
+end--создание подмассивов(без него ошибка)
+
 local masCode = {}
 local elements = {}
 local pos
@@ -28,6 +36,7 @@ local index = 1
 local line = 11
 local pause = 1000
 local speed = 800
+local level = 1
 
 local height, width = 64, .8
 local shape_enemy = {
@@ -39,25 +48,132 @@ height, width = nil, nil
 -- blueButton.cmd = { up = "U",down="D",right="R",left="L",pick="P"}
 --   redButton.cmd = { For = "*1", While="I"}
 --   greenButton.cmd = { Plus = "*1", Minus="I"}
+local function clearMap()
+  for x=1, sizeX do
+    for y=1, sizeY do
+      map[x][y].block=false
+      map[x][y].exit=false
+      map[x][y].fill={1}
+      map[x][y].alpha=.2
+    end
+  end
+end
+
+local maps={
+  {block={{x=1,y=2},{x=2,y=1},{x=4,y=5}},exit={{x=2,y=3}},playerZerPose={x=4,y=7}},
+  {block={{x=2,y=2},{x=3,y= 3}},exit={{x=2,y=3}},playerZerPose={x=4,y=7}},
+}
+
+local function block(x,y)
+  map[x][y].fill={type="image",filename="boch.png"}
+  map[x][y].alpha=1
+  map[x][y].block=true
+  -- map[x][y].rotation = math.random(0,4) * 90
+end
+
+local function fillMap(level)
+  clearMap()
+  local blocks = maps[level].block
+  for i=1, #blocks do
+    block(blocks[i].x, blocks[i].y)
+  end
+end
+
+local stop = true
+local steps = 0
+local playerZerPose = {x=4,y=7}
+local function restart()
+  steps = 0
+  stop=true
+  show.alpha=0
+  player.x = cubeSize*(playerZerPose.x-.5)
+  player.y = cubeSize*(playerZerPose.y-.5)
+  player.mapx, player.mapy = 4, 7
+end
+
+local task = {{step=6,cmd=5}}
+local function checkWin()
+  local pop = display.newGroup( )
+  uiGroup:insert( pop )
+
+  local back = display.newRect( pop, q.cx, q.cy, q.fullw, q.fullh )
+  back.fill={0}
+  back.alpha=0
+  transition.to(back,{alpha=.28,time=400})
+
+  local infoPop = display.newGroup( )
+  pop:insert( infoPop )
+
+  infoPop.x=-q.cx
+  infoPop.y=q.cy
+  transition.to( infoPop, {x=q.cx,time=500,transition=easing.outCubic})
+
+  local xp = display.newImageRect( pop, "xp.png", 500, 100 )
+  xp.anchorX=0
+  xp.anchorY=0
+
+  local red, green = q.CL"ce4d4d", q.CL"5fd34f"
+  local infoback = display.newImageRect( infoPop, "complete.png", 271*2.5, 256*2.5 )
+
+  local stepLabel = display.newText( infoPop, "Кол-во шагов:", -infoback.width/2+35, -120, native.newFont("r_b.ttf"),47)
+  stepLabel.anchorX=0
+
+  local cmdLabel = display.newText( infoPop, "Кол-во команд:", -infoback.width/2+35, -45, native.newFont("r_b.ttf"),47)
+  cmdLabel.anchorX=0
+
+  local stepRight = display.newText( infoPop, steps.."/"..task[1].step, infoback.width/2-65, -120, native.newFont("r_b.ttf"),47)
+  stepRight.anchorX=1
+
+  local cmdRight = display.newText( infoPop, #elements.."/"..task[1].cmd, infoback.width/2-65, -45, native.newFont("r_b.ttf"),47)
+  cmdRight.anchorX=1
+
+  local color = steps>task[1].step and red or green
+  stepRight:setFillColor( unpack(color) )
+  stepLabel:setFillColor( unpack(color) )
+
+  local color = #elements>task[1].cmd and red or green
+  cmdLabel:setFillColor( unpack(color) )
+  cmdRight:setFillColor( unpack(color) )
+
+  local restartButt = display.newRect( infoPop, 0, 115, 160, 160 )
+  restartButt.alpha=.01
+  restartButt:addEventListener( "tap", function() restart() display.remove(pop) end )
+  -- restartButt.fill={.5}
+end
+
 local function Do()
-  if elements[index]==nil then show.alpha=0 return end
+  if elements[index]==nil or stop==true then restart() return end 
+  
   transition.to(show, {y=pos+50*index-20,time=150,transition=easing.outCubic })
   -- local cmd = code:sub(index,index)
+  print(player.mapx,player.mapy,sizeY,player.mapy==sizeY)
   local cmd = elements[index].cmd
   if cmd=="U" then
-    transition.to( player, {y=player.y-100,time=speed} )
+    if player.mapy==1 or map[player.mapx][player.mapy-1].block==true then restart() return end
+    steps = steps + 1
+    player.mapy = player.mapy - 1
+    transition.to( player, {y=player.y-cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="D" then
-    transition.to( player, {y=player.y+100,time=speed} )
+    if player.mapy==sizeY or map[player.mapx][player.mapy+1].block==true then restart() return end
+    steps = steps + 1
+    player.mapy = player.mapy + 1
+    transition.to( player, {y=player.y+cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="L" then
-    transition.to( player, {x=player.x-100,time=speed} )
+    if player.mapx==1 or map[player.mapx-1][player.mapy].block==true then restart() return end
+    steps = steps + 1
+    player.mapx = player.mapx-1
+    transition.to( player, {x=player.x-cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="R" then
-    transition.to( player, {x=player.x+100,time=speed} )
+    if player.mapx==sizeX or map[player.mapx+1][player.mapy].block==true then restart() return end
+    steps = steps + 1
+    player.mapx = player.mapx+1
+    transition.to( player, {x=player.x+cubeSize,time=speed} )
     timer.performWithDelay( pause, function() Do(index+1) end )
     index = index + 1
   elseif cmd=="*" then
@@ -105,6 +221,9 @@ local function Do()
     index = index + 1
     Do()
   end
+  -- local 
+  -- timer.performWithDelay( speed, function() end )
+  if map[player.mapx][player.mapy].exit == true then checkWin() restart() end
 end
 
 local deb = display.newText("1", 50,20,native.newFont("qv.ttf" ),50)
@@ -298,6 +417,39 @@ function scene:create( event )
   uiGroup = display.newGroup()
   sceneGroup:insert(uiGroup)
 
+  for i=1, sizeY, 1 do
+    for j=1, sizeX, 1 do
+      map[i][j] = display.newRect( mainGroup, cubeSize*(i-1), cubeSize*(j-1), cubeSize-5, cubeSize-5 )
+      map[i][j].alpha=.2
+      map[i][j].anchorX=0
+      map[i][j].anchorY=0
+      -- map[i][j].clear=true
+      map[i][j].tx=i
+      map[i][j].ty=j
+      -- map[i][j].freeConnect={}
+      -- for k=1, 4 do
+      --   map[i][j].freeConnect[k]=false
+      -- end
+      print(i,j)
+    end
+  end-- создание карты
+
+  -- map[4][3]:setFillColor( 0,1,0 )
+  
+  -- map[4][3].fill={type="image",filename="exit.png"}
+  -- map[4][3].alpha=1
+  -- map[4][3].exit=true
+
+  -- -- map[4][6]:setFillColor( 1,0,0 )
+  -- for i=1, 20 do
+  --   local a,b = math.random( 1,7 ),math.random( 1,7 )
+  --   if map[a][b].block~=true and map[a][b].exit~=true and not (a==4 and b==7) then
+  --   block(a,b)
+  --   end
+  -- end
+
+
+
   local backCode = display.newRect( codeGroup, 0, q.fullh, q.fullw, q.fullh*.4 )
   backCode.anchorX=0
   backCode.anchorY=1
@@ -318,8 +470,9 @@ function scene:create( event )
   -- back.anchorX=0
   -- back.anchorY=0
 
-  player = display.newImageRect( mainGroup, "robot.png", 150, 100 )
-  player.x, player.y = q.cx, q.cy
+  player = display.newImageRect( mainGroup, "robot1.png", 150, 100 )
+  player.x, player.y = q.cx, cubeSize*(sizeY-0.5)
+  player.mapx, player.mapy = 4, 7
   -- player:setFillColor( 1, 0 ,0)
 
 
@@ -357,11 +510,19 @@ function scene:create( event )
   greenButton.color[2]=greenButton.color[2]*0.9
   greenButton.color[3]=greenButton.color[3]*0.9
 
-  local playButton = display.newRect(uiGroup, q.fullw-50, q.cy, 100,100)
-  playButton.anchorX=1
-  playButton:addEventListener( "tap", function() show.alpha=1 index=1 Do() end )
+  local playButton = display.newPolygon(codeGroup, q.fullw-150, pos-50, shape_enemy)
+  playButton.rotation=-90
+  playButton.xScale=.8
+  playButton.yScale=.8
+  playButton:setFillColor( .2 )
+  -- playButton.anchorX=1
+  playButton:addEventListener( "tap", function() clearMap() if stop==true then steps=0 stop=false show.alpha=1 index=1 Do() end end )
 
-  -- greenButton.fill={1,.3,.3}
+  local stopButton = display.newRect(codeGroup, q.fullw-250,  pos-50, 75,75)
+  stopButton:setFillColor( .2 )
+  -- playButton.anchorX=1
+  stopButton:addEventListener( "tap", function() if stop==false then stop=true restart() end end )
+
   
 
   for i=1, line do
@@ -516,7 +677,7 @@ function scene:create( event )
   greenButton:addEventListener( "tap", listGen )
   redButton:addEventListener( "tap", listGen )
   -- Do()
-  
+
 end
 
 
@@ -528,7 +689,8 @@ function scene:show( event )
   if ( phase == "will" ) then
 
   elseif ( phase == "did" ) then
-
+    fillMap(1)
+    -- checkWin()     
   end
 end
 

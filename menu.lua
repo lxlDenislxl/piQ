@@ -25,10 +25,12 @@ function scene:create( event )
   uiGroup = display.newGroup()
   sceneGroup:insert(uiGroup)
 
-  local back = display.newImageRect( backGroup, "play.png", q.fullh, q.fullw )
+  -- local liga = display.newImageRect( [parent,], filename, [baseDir,], width, height )
+
+  local back = display.newImageRect( backGroup, "pack.png", q.fullw, q.fullh )
   back.x=q.cx
   back.y=q.cy
-  back.rotation=90
+  -- back.rotation=90
 
   back:addEventListener( "tap", function() composer.gotoScene("game") end )
 end
@@ -42,7 +44,7 @@ function scene:show( event )
   if ( phase == "will" ) then
 
   elseif ( phase == "did" ) then
-
+    -- composer.gotoScene("game")  
   end
 end
 
